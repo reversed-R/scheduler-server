@@ -1,100 +1,164 @@
 package internal
 
 import (
-	"gorm.io/driver/sqlite"
+	"fmt"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"time"
 )
 
-type Album struct {
-	gorm.Model
-	ID     string  `json:"id"`
-	Title  string  `json:"title"`
-	Artist string  `json:"artist"`
-	Price  float64 `json:"price"`
+// for front
+type Table struct {
+	// title         string         `json:"title"`
+	// description   string         `json:"description"`
+	times         []time.Time    `json:"times"`
+	personalPlans []PersonalPlan `json:"personalPlans"`
 }
 
-// Migrate the schema
-func Migrate() {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
-	}
+type PersonalPlan struct {
+	name           string   `json:"name"`
+	comment        string   `json:"comment"`
+	availabilities []string `json:"availabilities"`
+}
 
-	db.AutoMigrate(&Album{})
+// for DB tables
+type Product struct {
+	gorm.Model
+	Code  string
+	Price uint
+}
+
+type Person struct {
+	gorm.Model
+	Id      uint `gorm:"primaryKey"`
+	Name    string
+	Comment string
+}
+
+type Plan struct {
+	gorm.Model
+	PersonId       uint
+	AvailabilityId uint
+	TimeId         uint
+}
+
+type Time struct {
+	gorm.Model
+	Id   uint `gorm:"primaryKey"`
+	time time.Time
+}
+
+type Availability struct {
+	gorm.Model
+	Id           uint `gorm:"primaryKey"`
+	Availability string
+}
+
+func ConnectDB() (*gorm.DB, error) {
+	dsn := "host=db user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
+	return db, err
+}
+
+func InitDB(db *gorm.DB) {
+	// Migrate the schema
+	db.AutoMigrate(&Person{}, &Plan{}, &Time{}, &Availability{})
+
+	db.Create(&Availability{Id: 1, Availability: "OK"})
+	db.Create(&Availability{Id: 2, Availability: "NO"})
+	db.Create(&Time{Id: 1, time: time.Date(2024, 12, 25, 0, 0, 0, 0, time.Local)})
+	db.Create(&Time{Id: 2, time: time.Date(2024, 12, 25, 1, 0, 0, 0, time.Local)})
+	CreatePerson(db, Person{Id: 1, Name: "John Smith", Comment: "Hello!"})
+	CreatePerson(db, Person{Id: 2, Name: "Mary Smith", Comment: "Good Bye!"})
+	CreatePlan(db, Plan{PersonId: 1, TimeId: 1, AvailabilityId: 2})
+	CreatePlan(db, Plan{PersonId: 1, TimeId: 2, AvailabilityId: 1})
+	CreatePlan(db, Plan{PersonId: 2, TimeId: 1, AvailabilityId: 2})
+	CreatePlan(db, Plan{PersonId: 2, TimeId: 2, AvailabilityId: 2})
 }
 
 // Create
-func Create(album Album) {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
-	}
+func CreatePerson(db *gorm.DB, person Person) {
+	db.Create(&person)
+}
 
-	db.Create(&album)
+func CreatePlan(db *gorm.DB, plan Plan) {
+	db.Create(&plan)
 }
 
 // Read
-func Read() {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
+// func ReadProductFirstByCode(db gorm.DB, product *Product, code string) {
+// 	db.First(&product, code)
+// }
+
+func GetTable(db *gorm.DB) Table {
+	var persons []Person
+	var times []time.Time
+	var availabilities []Availability
+	var personalPlans []PersonalPlan
+	// var plans []Plan
+	// personsResult := db.Find(&persons)
+	db.Find(&persons)
+	db.Find(&times)
+	db.Find(&availabilities)
+
+	for _, person := range persons {
+		var plans []Plan
+		db.Where("id = ?", person.Id).Find(&plans)
+		var availabilityStrs []string
+
+		for _, a := range availabilities {
+			availabilityStrs = append(availabilityStrs, getAvailabilityById(availabilities, a.Id))
+		}
+
+		personalPlans = append(personalPlans,
+			PersonalPlan{
+				name:           person.Name,
+				comment:        person.Comment,
+				availabilities: availabilityStrs,
+			})
+
+		fmt.Print(availabilityStrs)
 	}
 
-	var album Album
-	db.First(&album, 1)
+	fmt.Print(Table{times: times, personalPlans: personalPlans})
+
+	return Table{times: times, personalPlans: personalPlans}
+}
+
+func getAvailabilityById(availabilities []Availability, id uint) string {
+	for _, a := range availabilities {
+		if a.Id == id {
+			return a.Availability
+		}
+	}
+	return ""
 }
 
 // Update
-func UpdateById(id string, album Album) {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
-	}
+func UpdatePersonName(db *gorm.DB, id uint, name string) {
+	var oldPerson Person
+	oldPerson.Id = id
 
-	var oldAlbum Album
-	oldAlbum.ID = id
-	db.Model(oldAlbum).Updates(album)
+	db.Model(&oldPerson).Update("Name", name)
 }
 
-// Delete
-func Delete(album Album) {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
-	}
+func UpdatePersonComment(db *gorm.DB, id uint, comment string) {
+	var oldPerson Person
+	oldPerson.Id = id
 
-	db.Delete(&album, 1)
+	db.Model(&oldPerson).Update("Comment", comment)
 }
 
-// type Product struct {
-// 	gorm.Model
-// 	Code  string
-// 	Price uint
-// }
-//
-// func test() {
-// 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-// 	if err != nil {
-// 		panic("failed to connect database")
-// 	}
-//
-// 	// Migrate the schema
-// 	db.AutoMigrate(&Product{})
-//
-// 	// Create
-// 	db.Create(&Product{Code: "D42", Price: 100})
-//
-// 	// Read
-// 	var product Product
-// 	db.First(&product, 1)
-// 	db.First(&product, "code = ?", "D42")
-//
-// 	// Update
-// 	db.Model(&product).Update("Price", 200)
-// 	// Update
-// 	db.Model(&product).Updates(Product{Price: 200, Code: "F42"})
-// 	db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
-//
-// 	// Delete
-// 	db.Delete(&product, 1)
-// }
+func UpdateByCode(db *gorm.DB, product *Product, code string) {
+	// var oldAlbum Album
+	// oldAlbum.ID = id
+	// db.Model(oldAlbum).Updates(album)
+	//
+	// // Update - update product's price to 200
+	// db.Model(&product).Update("Price", 200)
+	// // Update - update multiple fields
+	// db.Model(&product).Updates(Product{Price: 200, Code: "F42"}) // non-zero fields
+	// db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
+	// fmt.Printf("product.Code=%s\n", product.Code)
+}

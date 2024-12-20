@@ -1,20 +1,12 @@
 package main
 
 import (
-	// "database/sql"
-	"fmt"
-
-	"gorm.io/driver/postgres"
+	"github.com/gin-gonic/gin"
+	"github.com/reversed-R/time-adjustment-server/internal"
+	// "gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"net/http"
 )
-
-// type Album struct {
-// 	gorm.Model
-// 	ID     string  `json:"id"`
-// 	Title  string  `json:"title"`
-// 	Artist string  `json:"artist"`
-// 	Price  float64 `json:"price"`
-// }
 
 type Product struct {
 	gorm.Model
@@ -22,107 +14,63 @@ type Product struct {
 	Price uint
 }
 
+// type album struct {
+// 	ID     string  `json:"id"`
+// 	Title  string  `json:"title"`
+// 	Artist string  `json:"artist"`
+// 	Price  float64 `json:"price"`
+// }
+
+// albums slice to seed record album data.
+// var albums = []internal.Album{
+// 	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
+// 	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
+// 	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
+// }
+
 func main() {
-	fmt.Printf("main---->\n")
-
-	dsn := "host=db user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Shanghai"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-
+	db, err := internal.ConnectDB()
 	if err != nil {
 		panic("failed to connect database")
 	}
 
-	// Migrate the schema
-	db.AutoMigrate(&Product{})
+	internal.InitDB(db)
 
-	// Create
-	db.Create(&Product{Code: "D42", Price: 100})
+	r := gin.Default()
 
-	// Read
-	var product Product
-	// db.First(&product, 1)                 // find product with integer primary key
-	db.First(&product, "code = ?", "D42") // find product with code D42
+	// r.GET("/albums/:id", getAlbumById)
+	// r.POST("/albums", postAlbums)
 
-	fmt.Printf("product.Code=%s\n", product.Code)
-
-	// Update - update product's price to 200
-	db.Model(&product).Update("Price", 200)
-	// Update - update multiple fields
-	db.Model(&product).Updates(Product{Price: 200, Code: "F42"}) // non-zero fields
-	db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
-	fmt.Printf("product.Code=%s\n", product.Code)
-
-	// Delete - delete product
-	db.Delete(&product, 1)
-	fmt.Printf("product.Code=%s\n", product.Code)
-
-	fmt.Printf("<----main\n")
+	r.GET("/table", func(c *gin.Context) {
+		c.IndentedJSON(http.StatusOK, internal.GetTable(db))
+	})
+	r.Run("0.0.0.0:8080") // listen and serve on 0.0.0.0:8080
 }
 
-// Create
-func CreateProduct(db gorm.DB, product Product) {
-	db.Create(&product)
-}
-
-// Read
-func ReadProductFirstByCode(db gorm.DB, product *Product, code string) {
-	db.First(&product, code)
-}
-
-// Update
-func UpdateByCode(db gorm.DB, product *Product, code string) {
-	// var oldAlbum Album
-	// oldAlbum.ID = id
-	// db.Model(oldAlbum).Updates(album)
-	//
-	// // Update - update product's price to 200
-	// db.Model(&product).Update("Price", 200)
-	// // Update - update multiple fields
-	// db.Model(&product).Updates(Product{Price: 200, Code: "F42"}) // non-zero fields
-	// db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
-	// fmt.Printf("product.Code=%s\n", product.Code)
-
-}
-
-// // Delete
-// func Delete(album Album) {
-//         db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-//         if err != nil {
-//                 panic("failed to connect database")
-//         }
-//
-//         db.Delete(&album, 1)
+// func getTable(c *gin.Context) {
+// 	c.IndentedJSON(http.StatusOK, internal.GetTable())
 // }
 
-// type Product struct {
-//      gorm.Model
-//      Code  string
-//      Price uint
+// func postAlbums(c *gin.Context) {
+// 	var newAlbum internal.Album
+//
+// 	if err := c.BindJSON(&newAlbum); err != nil {
+// 		return
+// 	}
+//
+// 	albums = append(albums, newAlbum)
+// 	internal.Create(newAlbum)
+// 	c.IndentedJSON(http.StatusCreated, newAlbum)
 // }
 //
-// func test() {
-//      db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-//      if err != nil {
-//              panic("failed to connect database")
-//      }
+// func getAlbumById(c *gin.Context) {
+// 	id := c.Param("id")
 //
-//      // Migrate the schema
-//      db.AutoMigrate(&Product{})
-//
-//      // Create
-//      db.Create(&Product{Code: "D42", Price: 100})
-//
-//      // Read
-//      var product Product
-//      db.First(&product, 1)
-//      db.First(&product, "code = ?", "D42")
-//
-//      // Update
-//      db.Model(&product).Update("Price", 200)
-//      // Update
-//      db.Model(&product).Updates(Product{Price: 200, Code: "F42"})
-//      db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
-//
-//      // Delete
-//      db.Delete(&product, 1)
+// 	for _, a := range albums {
+// 		if a.ID == id {
+// 			c.IndentedJSON(http.StatusOK, a)
+// 			return
+// 		}
+// 	}
+// 	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
 // }

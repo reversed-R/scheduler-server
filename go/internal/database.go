@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"fmt"
+	// "fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"time"
@@ -52,6 +52,9 @@ type Availability struct {
 func ConnectDB() (*gorm.DB, error) {
 	dsn := "host=db user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
 
 	return db, err
 }
@@ -60,16 +63,16 @@ func InitDB(db *gorm.DB) {
 	// Migrate the schema
 	db.AutoMigrate(&Person{}, &Plan{}, &Time{}, &Availability{})
 
-	db.Create(&Availability{Availability: "OK"})
-	db.Create(&Availability{Availability: "NO"})
-	db.Create(&Time{Time: time.Date(2024, 12, 25, 0, 0, 0, 0, time.Local)})
-	db.Create(&Time{Time: time.Date(2024, 12, 25, 1, 30, 0, 0, time.Local)})
-	CreatePerson(db, Person{Name: "John Smith", Comment: "Hello!"})
-	CreatePerson(db, Person{Name: "Mary Smith", Comment: "Good Bye!"})
-	CreatePlan(db, Plan{PersonId: 1, TimeId: 1, AvailabilityId: 2})
-	CreatePlan(db, Plan{PersonId: 1, TimeId: 2, AvailabilityId: 1})
-	CreatePlan(db, Plan{PersonId: 2, TimeId: 1, AvailabilityId: 2})
-	CreatePlan(db, Plan{PersonId: 2, TimeId: 2, AvailabilityId: 2})
+	// db.Create(&Availability{Availability: "OK"})
+	// db.Create(&Availability{Availability: "NO"})
+	// db.Create(&Time{Time: time.Date(2024, 12, 25, 0, 0, 0, 0, time.Local)})
+	// db.Create(&Time{Time: time.Date(2024, 12, 25, 1, 30, 0, 0, time.Local)})
+	// CreatePerson(db, Person{Name: "John Smith", Comment: "Hello!"})
+	// CreatePerson(db, Person{Name: "Mary Smith", Comment: "Good Bye!"})
+	// CreatePlan(db, Plan{PersonId: 1, TimeId: 1, AvailabilityId: 2})
+	// CreatePlan(db, Plan{PersonId: 1, TimeId: 2, AvailabilityId: 1})
+	// CreatePlan(db, Plan{PersonId: 2, TimeId: 1, AvailabilityId: 2})
+	// CreatePlan(db, Plan{PersonId: 2, TimeId: 2, AvailabilityId: 2})
 }
 
 // Create
@@ -99,9 +102,9 @@ func GetTable(db *gorm.DB) Table {
 	db.Find(&times)
 	db.Find(&availabilities)
 
-	fmt.Println("persons", persons)
-	fmt.Println("times", times)
-	fmt.Println("availabilities", availabilities)
+	// fmt.Println("persons", persons)
+	// fmt.Println("times", times)
+	// fmt.Println("availabilities", availabilities)
 
 	for _, a := range availabilities {
 		availabilitiesMap[a.ID] = a.Availability
@@ -113,12 +116,12 @@ func GetTable(db *gorm.DB) Table {
 
 	for _, person := range persons {
 		plans := GetPlansByPersonId(db, person.ID)
-		fmt.Println("plans", plans)
+		// fmt.Println("plans", plans)
 		plansMap := make(map[uint]uint) // plan // timeId -> AvailabilityId
-		fmt.Println("plansMap", plansMap)
+		// fmt.Println("plansMap", plansMap)
 		for _, p := range plans {
 			plansMap[p.TimeId] = p.AvailabilityId
-			fmt.Println("plansMap", plansMap)
+			// fmt.Println("plansMap", plansMap)
 		}
 		// var plans []Plan
 		// db.Where("id = ?", person.Id).Find(&plans)
@@ -138,7 +141,7 @@ func GetTable(db *gorm.DB) Table {
 				Availabilities: availabilityStrs,
 			})
 
-		fmt.Println(availabilityStrs)
+		// fmt.Println(availabilityStrs)
 	}
 
 	// personalPlans = SliceMap(persons,
@@ -175,6 +178,15 @@ func GetPlansByPersonId(db *gorm.DB, personId uint) []Plan {
 // }
 
 // Update
+func UpdatePerson(db *gorm.DB, id uint, person Person) (*gorm.DB, Person) {
+	var oldPerson Person
+	oldPerson.ID = id
+
+	result := db.Model(&oldPerson).Updates(person)
+
+	return result, oldPerson
+}
+
 func UpdatePersonName(db *gorm.DB, id uint, name string) {
 	var oldPerson Person
 	oldPerson.ID = id

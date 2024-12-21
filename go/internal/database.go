@@ -72,8 +72,9 @@ func InitDB(db *gorm.DB) {
 }
 
 // Create
-func CreatePerson(db *gorm.DB, person Person) {
-	db.Create(&person)
+func CreatePerson(db *gorm.DB, person Person) (*gorm.DB, Person) {
+	result := db.Create(&person)
+	return result, person
 }
 
 func CreatePlan(db *gorm.DB, plan Plan) {

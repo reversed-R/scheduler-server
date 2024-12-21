@@ -28,9 +28,26 @@ func main() {
 		c.IndentedJSON(http.StatusOK, internal.GetTable(db))
 	})
 
+	r.POST("/table/persons/", func(c *gin.Context) {
+		var newPerson internal.Person
+
+		if err := c.BindJSON(&newPerson); err != nil {
+			c.IndentedJSON(http.StatusBadRequest, newPerson)
+			return
+		}
+
+		result, person := internal.CreatePerson(db, newPerson)
+		if result.RowsAffected == 0 {
+			c.IndentedJSON(http.StatusInternalServerError, person)
+		} else {
+			c.IndentedJSON(http.StatusCreated, person)
+		}
+	})
+
 	r.POST("/table/persons/:id", func(c *gin.Context) {
 		id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
 		if err != nil {
+			c.IndentedJSON(http.StatusNotFound, gin.H{"message": "No such uri resource", "uri": "/table/persons/" + c.Param("id")})
 			return
 		}
 		id := uint(id64)
@@ -38,6 +55,7 @@ func main() {
 		var newPerson internal.Person
 
 		if err := c.BindJSON(&newPerson); err != nil {
+			c.IndentedJSON(http.StatusBadRequest, newPerson)
 			return
 		}
 

@@ -9,16 +9,16 @@ import (
 
 // for front
 type Table struct {
-	// title         string         `json:"title"`
-	// description   string         `json:"description"`
-	times         []time.Time    `json:"times"`
-	personalPlans []PersonalPlan `json:"personalPlans"`
+	// Title         string         `json:"title"`
+	// Description   string         `json:"description"`
+	Times         []time.Time    `json:"times"`
+	PersonalPlans []PersonalPlan `json:"personalPlans"`
 }
 
 type PersonalPlan struct {
-	name           string   `json:"name"`
-	comment        string   `json:"comment"`
-	availabilities []string `json:"availabilities"`
+	Name           string   `json:"name"`
+	Comment        string   `json:"comment"`
+	Availabilities []string `json:"availabilities"`
 }
 
 // for DB tables
@@ -45,7 +45,7 @@ type Plan struct {
 type Time struct {
 	gorm.Model
 	Id   uint `gorm:"primaryKey"`
-	time time.Time
+	Time time.Time
 }
 
 type Availability struct {
@@ -67,8 +67,8 @@ func InitDB(db *gorm.DB) {
 
 	db.Create(&Availability{Id: 1, Availability: "OK"})
 	db.Create(&Availability{Id: 2, Availability: "NO"})
-	db.Create(&Time{Id: 1, time: time.Date(2024, 12, 25, 0, 0, 0, 0, time.Local)})
-	db.Create(&Time{Id: 2, time: time.Date(2024, 12, 25, 1, 0, 0, 0, time.Local)})
+	db.Create(&Time{Id: 1, Time: time.Date(2024, 12, 25, 0, 0, 0, 0, time.Local)})
+	db.Create(&Time{Id: 2, Time: time.Date(2024, 12, 25, 1, 0, 0, 0, time.Local)})
 	CreatePerson(db, Person{Id: 1, Name: "John Smith", Comment: "Hello!"})
 	CreatePerson(db, Person{Id: 2, Name: "Mary Smith", Comment: "Good Bye!"})
 	CreatePlan(db, Plan{PersonId: 1, TimeId: 1, AvailabilityId: 2})
@@ -113,17 +113,17 @@ func GetTable(db *gorm.DB) Table {
 
 		personalPlans = append(personalPlans,
 			PersonalPlan{
-				name:           person.Name,
-				comment:        person.Comment,
-				availabilities: availabilityStrs,
+				Name:           person.Name,
+				Comment:        person.Comment,
+				Availabilities: availabilityStrs,
 			})
 
-		fmt.Print(availabilityStrs)
+		fmt.Println(availabilityStrs)
 	}
 
-	fmt.Print(Table{times: times, personalPlans: personalPlans})
+	fmt.Println(Table{Times: times, PersonalPlans: personalPlans})
 
-	return Table{times: times, personalPlans: personalPlans}
+	return Table{Times: times, PersonalPlans: personalPlans}
 }
 
 func getAvailabilityById(availabilities []Availability, id uint) string {

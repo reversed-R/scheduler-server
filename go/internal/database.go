@@ -24,14 +24,12 @@ type PersonalPlan struct {
 // for DB tables
 type Person struct {
 	gorm.Model
-	// Id      uint   `gorm:"primaryKey"`
 	Name    string `gorm:"name"`
 	Comment string `gorm:"comment"`
 }
 
 type Plan struct {
 	gorm.Model
-	// Id             uint `gorm:"primaryKey"`
 	PersonId       uint `gorm:"person_id"`
 	AvailabilityId uint `gorm:"availability_id"`
 	TimeId         uint `gorm:"time_id"`
@@ -39,13 +37,11 @@ type Plan struct {
 
 type Time struct {
 	gorm.Model
-	// Id   uint      `gorm:"primaryKey"`
 	Time time.Time `gorm:"time"`
 }
 
 type Availability struct {
 	gorm.Model
-	// Id           uint   `gorm:"primaryKey"`
 	Availability string `gorm:"availability"`
 }
 
@@ -96,8 +92,7 @@ func GetTable(db *gorm.DB) Table {
 	var personalPlans []PersonalPlan
 	availabilitiesMap := make(map[uint]string)
 	timesMap := make(map[uint]time.Time)
-	// var plans []Plan
-	// personsResult := db.Find(&persons)
+
 	db.Find(&persons)
 	db.Find(&times)
 	db.Find(&availabilities)
@@ -123,16 +118,9 @@ func GetTable(db *gorm.DB) Table {
 			plansMap[p.TimeId] = p.AvailabilityId
 			// fmt.Println("plansMap", plansMap)
 		}
-		// var plans []Plan
-		// db.Where("id = ?", person.Id).Find(&plans)
-		// availabilityStrs := SliceMap(availabilities,
-		// 	func(a Availability) string { return availabilitiesMap[a.Id] })
 
 		availabilityStrs := SliceMap(times,
 			func(t Time) string { return availabilitiesMap[plansMap[t.ID]] })
-		// for _, a := range availabilities {
-		// 	availabilityStrs = append(availabilityStrs, getAvailabilityById(availabilities, a.Id))
-		// }
 
 		personalPlans = append(personalPlans,
 			PersonalPlan{
@@ -140,23 +128,7 @@ func GetTable(db *gorm.DB) Table {
 				Comment:        person.Comment,
 				Availabilities: availabilityStrs,
 			})
-
-		// fmt.Println(availabilityStrs)
 	}
-
-	// personalPlans = SliceMap(persons,
-	// 	func(person Person) PersonalPlan {
-	// 		return SliceMap(GetPlansByPersonId(db, person.Id), func(plan Plan) PersonalPlan {
-	// 			return PersonalPlan{
-	// 				Name:    person.Name,
-	// 				Comment: person.Comment,
-	// 				Availabilities: SliceMap(availabilities,
-	// 					func(a Availability) string { return availabilitiesMap[a.Id] }),
-	// 			}
-	// 		})
-	// 	})
-
-	// fmt.Println(Table{Times: times, PersonalPlans: personalPlans})
 
 	return Table{Times: SliceMap(times, func(t Time) time.Time { return t.Time }), PersonalPlans: personalPlans}
 }
@@ -167,15 +139,6 @@ func GetPlansByPersonId(db *gorm.DB, personId uint) []Plan {
 
 	return plans
 }
-
-// func getAvailabilityById(availabilities []Availability, id uint) string {
-// 	for _, a := range availabilities {
-// 		if a.Id == id {
-// 			return a.Availability
-// 		}
-// 	}
-// 	return ""
-// }
 
 // Update
 func UpdatePerson(db *gorm.DB, id uint, person Person) (*gorm.DB, Person) {
@@ -200,16 +163,3 @@ func UpdatePersonComment(db *gorm.DB, id uint, comment string) {
 
 	db.Model(&oldPerson).Update("Comment", comment)
 }
-
-// func UpdateByCode(db *gorm.DB, product *Product, code string) {
-// 	// var oldAlbum Album
-// 	// oldAlbum.ID = id
-// 	// db.Model(oldAlbum).Updates(album)
-// 	//
-// 	// // Update - update product's price to 200
-// 	// db.Model(&product).Update("Price", 200)
-// 	// // Update - update multiple fields
-// 	// db.Model(&product).Updates(Product{Price: 200, Code: "F42"}) // non-zero fields
-// 	// db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
-// 	// fmt.Printf("product.Code=%s\n", product.Code)
-// }

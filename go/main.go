@@ -28,42 +28,42 @@ func main() {
 		c.IndentedJSON(http.StatusOK, internal.GetTable(db))
 	})
 
-	r.POST("/table/persons/", func(c *gin.Context) {
-		var newPerson internal.Person
+	r.POST("/table/users/", func(c *gin.Context) {
+		var newUser internal.User
 
-		if err := c.BindJSON(&newPerson); err != nil {
-			c.IndentedJSON(http.StatusBadRequest, newPerson)
+		if err := c.BindJSON(&newUser); err != nil {
+			c.IndentedJSON(http.StatusBadRequest, newUser)
 			return
 		}
 
-		result, person := internal.CreatePerson(db, newPerson)
+		result, user := internal.CreateUser(db, newUser)
 		if result.RowsAffected == 0 {
-			c.IndentedJSON(http.StatusInternalServerError, person)
+			c.IndentedJSON(http.StatusInternalServerError, user)
 		} else {
-			c.IndentedJSON(http.StatusCreated, person)
+			c.IndentedJSON(http.StatusCreated, user)
 		}
 	})
 
-	r.POST("/table/persons/:id", func(c *gin.Context) {
+	r.POST("/table/users/:id", func(c *gin.Context) {
 		id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
 		if err != nil {
-			c.IndentedJSON(http.StatusNotFound, gin.H{"message": "No such uri resource", "uri": "/table/persons/" + c.Param("id")})
+			c.IndentedJSON(http.StatusNotFound, gin.H{"message": "No such uri resource", "uri": "/table/users/" + c.Param("id")})
 			return
 		}
 		id := uint(id64)
 
-		var newPerson internal.Person
+		var newUser internal.User
 
-		if err := c.BindJSON(&newPerson); err != nil {
-			c.IndentedJSON(http.StatusBadRequest, newPerson)
+		if err := c.BindJSON(&newUser); err != nil {
+			c.IndentedJSON(http.StatusBadRequest, newUser)
 			return
 		}
 
-		result, person := internal.UpdatePerson(db, id, newPerson)
+		result, user := internal.UpdateUser(db, id, newUser)
 		if result.RowsAffected == 0 {
-			c.IndentedJSON(http.StatusNotFound, person)
+			c.IndentedJSON(http.StatusNotFound, user)
 		} else {
-			c.IndentedJSON(http.StatusOK, person)
+			c.IndentedJSON(http.StatusOK, user)
 		}
 	})
 

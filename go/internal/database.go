@@ -8,11 +8,11 @@ import (
 )
 
 // for front
-type Table struct {
-	// Title         string         `json:"title"`
-	// Description   string         `json:"description"`
-	Times     []time.Time `json:"times"`
-	UserPlans []UserPlan  `json:"userPlans"`
+type RoomAllInfo struct {
+	RoomName        string      `json:"roomName"`
+	RoomDescription string      `json:"roomDescription"`
+	Times           []time.Time `json:"times"`
+	UserPlans       []UserPlan  `json:"userPlans"`
 }
 
 type UserPlan struct {
@@ -22,14 +22,23 @@ type UserPlan struct {
 }
 
 // for DB tables
+type Room struct {
+	gorm.Model
+	Name        string `gorm:"name"`
+	Description string `gorm:"description"`
+	// Password   string
+}
+
 type User struct {
 	gorm.Model
+	RoomId  uint   `gorm:"room_id"`
 	Name    string `gorm:"name"`
 	Comment string `gorm:"comment"`
 }
 
 type Plan struct {
 	gorm.Model
+	RoomId         uint `gorm:"room_id"`
 	UserId         uint `gorm:"user_id"`
 	AvailabilityId uint `gorm:"availability_id"`
 	TimeId         uint `gorm:"time_id"`
@@ -57,7 +66,7 @@ func ConnectDB() (*gorm.DB, error) {
 
 func InitDB(db *gorm.DB) {
 	// Migrate the schema
-	db.AutoMigrate(&User{}, &Plan{}, &Time{}, &Availability{})
+	db.AutoMigrate(&Room{}, &User{}, &Plan{}, &Time{}, &Availability{})
 
 	// db.Create(&Availability{Availability: "OK"})
 	// db.Create(&Availability{Availability: "NO"})
@@ -72,6 +81,11 @@ func InitDB(db *gorm.DB) {
 }
 
 // Create
+func CreateRoom(db *gorm.DB, room Room) (*gorm.DB, Room) {
+	result := db.Create(&room)
+	return result, room
+}
+
 func CreateUser(db *gorm.DB, user User) (*gorm.DB, User) {
 	result := db.Create(&user)
 	return result, user
@@ -86,15 +100,17 @@ func CreatePlan(db *gorm.DB, plan Plan) {
 // 	db.First(&product, code)
 // }
 
-func GetTable(db *gorm.DB) Table {
-	var users []User
+func GetRoomAllInfo(db *gorm.DB, roomId uint) (RoomAllInfo, error) {
+	// var users []User
 	var times []Time
 	var availabilities []Availability
 	var userPlans []UserPlan
 	availabilitiesMap := make(map[uint]string)
 	timesMap := make(map[uint]time.Time)
 
-	db.Find(&users)
+	room, _ := GetRoom(db, roomId)
+	users, _ := GetUsersByRoomId(db, roomId)
+	// db.Find(&users)
 	db.Find(&times)
 	db.Find(&availabilities)
 
@@ -111,7 +127,7 @@ func GetTable(db *gorm.DB) Table {
 	}
 
 	for _, user := range users {
-		plans := GetPlansByUserId(db, user.ID)
+		plans, _ := GetPlansByUserId(db, user.ID)
 		// fmt.Println("plans", plans)
 		plansMap := make(map[uint]uint) // plan // timeId -> AvailabilityId
 		// fmt.Println("plansMap", plansMap)
@@ -131,14 +147,33 @@ func GetTable(db *gorm.DB) Table {
 			})
 	}
 
-	return Table{Times: SliceMap(times, func(t Time) time.Time { return t.Time }), UserPlans: userPlans}
+	return RoomAllInfo{
+			RoomName:        room.Name,
+			RoomDescription: room.Description,
+			Times:           SliceMap(times, func(t Time) time.Time { return t.Time }),
+			UserPlans:       userPlans},
+		nil
 }
 
-func GetPlansByUserId(db *gorm.DB, userId uint) []Plan {
-	var plans []Plan
-	db.Where("user_id = ?", userId).Find(&plans)
+func GetRoom(db *gorm.DB, roomId uint) (Room, error) {
+	var room Room
+	result := db.Where("id = ?", roomId).Find(&room)
 
-	return plans
+	return room, result.Error
+}
+
+func GetUsersByRoomId(db *gorm.DB, roomId uint) ([]User, error) {
+	var users []User
+	result := db.Where("room_id = ?", roomId).Find(&users)
+
+	return users, result.Error
+}
+
+func GetPlansByUserId(db *gorm.DB, userId uint) ([]Plan, error) {
+	var plans []Plan
+	result := db.Where("user_id = ?", userId).Find(&plans)
+
+	return plans, result.Error
 }
 
 // Update
@@ -151,16 +186,16 @@ func UpdateUser(db *gorm.DB, id uint, user User) (*gorm.DB, User) {
 	return result, oldUser
 }
 
-func UpdateUserName(db *gorm.DB, id uint, name string) {
-	var oldUser User
-	oldUser.ID = id
-
-	db.Model(&oldUser).Update("Name", name)
-}
-
-func UpdateUserComment(db *gorm.DB, id uint, comment string) {
-	var oldUser User
-	oldUser.ID = id
-
-	db.Model(&oldUser).Update("Comment", comment)
-}
+// func UpdateUserName(db *gorm.DB, id uint, name string) {
+// 	var oldUser User
+// 	oldUser.ID = id
+//
+// 	db.Model(&oldUser).Update("Name", name)
+// }
+//
+// func UpdateUserComment(db *gorm.DB, id uint, comment string) {
+// 	var oldUser User
+// 	oldUser.ID = id
+//
+// 	db.Model(&oldUser).Update("Comment", comment)
+// }

@@ -9,10 +9,14 @@ import (
 
 // for front
 type RoomAllInfo struct {
-	RoomName        string      `json:"roomName"`
-	RoomDescription string      `json:"roomDescription"`
-	Times           []time.Time `json:"times"`
-	UserPlans       []UserPlan  `json:"userPlans"`
+	RoomName         string     `json:"roomName"`
+	RoomDescription  string     `json:"roomDescription"`
+	BeginTime        TimeJSON   `json:"beginTime"`
+	DayLength        uint       `json:"dayLength"`
+	DayPattern       string     `json:"dayPatternId"`
+	DayPatternLength uint       `json:"dayPatternLength"`
+	UserPlans        []UserPlan `json:"userPlans"`
+	// Times           []time.Time `json:"times"`
 }
 
 type UserPlan struct {
@@ -21,11 +25,52 @@ type UserPlan struct {
 	Availabilities []string `json:"availabilities"`
 }
 
+type RoomJSON struct {
+	Name             string   `json:"name"`
+	Description      string   `json:"description"`
+	BeginTime        TimeJSON `json:"beginTime"`
+	DayLength        uint     `json:"dayLength"`
+	DayPattern       string   `json:"dayPatternId"`
+	DayPatternLength uint     `json:"dayPatternLength"`
+}
+
+type TimeJSON struct {
+	Year  int        `json:"year"`
+	Month time.Month `json:"month"`
+	Day   int        `json:"day"`
+	Hour  int        `json:"hour"`
+	Min   int        `json:"min"`
+}
+
 // for DB tables
+
+// type Date struct {
+// 	Year  int
+// 	Month time.Month
+// 	Day   int
+// }
+
+// length of days : all has length of days, begin day
+// time pattern in a day that should be supported : all has length of times
+// a day (1)
+// morning and afternoon (2)
+// classes time of tsukuba univ (1 + 6 + 1)
+// an hour cycle, begin and end can be freely decided (need to have begin time) (variable)
+
+// day pattern:
+//   "a_day"
+//   "am_and_pm"
+//   "classes_of_tsukuba_univ"
+//   "hours"
+
 type Room struct {
 	gorm.Model
-	Name        string `gorm:"name"`
-	Description string `gorm:"description"`
+	Name             string    `gorm:"name"`
+	Description      string    `gorm:"description"`
+	BeginTime        time.Time `gorm:"begin_time"`
+	DayLength        uint      `gorm:"day_length"`
+	DayPattern       string    `gorm:"day_pattern_id"`
+	DayPatternLength uint      `gorm:"day_pattern_length"`
 	// Password   string
 }
 
@@ -38,7 +83,7 @@ type User struct {
 
 type Plan struct {
 	gorm.Model
-	RoomId         uint `gorm:"room_id"`
+	// RoomId         uint `gorm:"room_id"`
 	UserId         uint `gorm:"user_id"`
 	AvailabilityId uint `gorm:"availability_id"`
 	TimeId         uint `gorm:"time_id"`
@@ -55,7 +100,7 @@ type Availability struct {
 }
 
 func ConnectDB() (*gorm.DB, error) {
-	dsn := "host=db user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	dsn := "host=db user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Tokyo"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
@@ -150,9 +195,26 @@ func GetRoomAllInfo(db *gorm.DB, roomId uint) (RoomAllInfo, error) {
 	return RoomAllInfo{
 			RoomName:        room.Name,
 			RoomDescription: room.Description,
-			Times:           SliceMap(times, func(t Time) time.Time { return t.Time }),
-			UserPlans:       userPlans},
+			BeginTime: TimeJSON{
+				Year:  room.BeginTime.Year(),
+				Month: room.BeginTime.Month(),
+				Day:   room.BeginTime.Day(),
+				Hour:  room.BeginTime.Hour(),
+				Min:   room.BeginTime.Minute(),
+			},
+			DayLength:        room.DayLength,
+			DayPattern:       room.DayPattern,
+			DayPatternLength: room.DayPatternLength,
+			UserPlans:        userPlans,
+		},
 		nil
+
+	// return RoomAllInfo{
+	// 		RoomName:        room.Name,
+	// 		RoomDescription: room.Description,
+	// 		Times:           SliceMap(times, func(t Time) time.Time { return t.Time }),
+	// 		UserPlans:       userPlans},
+	// 	nil
 }
 
 func GetRoom(db *gorm.DB, roomId uint) (Room, error) {

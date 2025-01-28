@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type Product struct {
@@ -72,11 +73,32 @@ func main() {
 }
 
 func registerRoom(c *gin.Context, db *gorm.DB) {
+	var newRoomJSON internal.RoomJSON
+	var beginTime time.Time
 	var newRoom internal.Room
 
-	if err := c.BindJSON(&newRoom); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, newRoom)
+	if err := c.BindJSON(&newRoomJSON); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, newRoomJSON)
 		return
+	}
+
+	beginTime = time.Date(
+		newRoomJSON.BeginTime.Year,
+		newRoomJSON.BeginTime.Month,
+		newRoomJSON.BeginTime.Day,
+		newRoomJSON.BeginTime.Hour,
+		newRoomJSON.BeginTime.Min,
+		0,
+		0,
+		time.Local)
+
+	newRoom = internal.Room{
+		Name:             newRoomJSON.Name,
+		Description:      newRoomJSON.Description,
+		BeginTime:        beginTime,
+		DayLength:        newRoomJSON.DayLength,
+		DayPattern:       newRoomJSON.DayPattern,
+		DayPatternLength: newRoomJSON.DayPatternLength,
 	}
 
 	result, room := internal.CreateRoom(db, newRoom)
@@ -161,5 +183,5 @@ func registerUser(c *gin.Context, db *gorm.DB) {
 	}
 }
 
-func getUsersOfRoom(c *gin.Context, db *gorm.DB) {
-}
+// func getUsersOfRoom(c *gin.Context, db *gorm.DB) {
+// }

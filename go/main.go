@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/reversed-R/time-adjustment-server/internal"
 	"gorm.io/gorm"
@@ -47,7 +48,7 @@ func registerRoom(c *gin.Context, db *gorm.DB) {
 	var newRoom internal.Room
 
 	if err := c.BindJSON(&newRoomJSON); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, newRoomJSON)
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Invalid JSON, could NOT parse"})
 		return
 	}
 
@@ -72,7 +73,7 @@ func registerRoom(c *gin.Context, db *gorm.DB) {
 
 	result, room := internal.CreateRoom(db, newRoom)
 	if result.RowsAffected == 0 {
-		c.IndentedJSON(http.StatusInternalServerError, room)
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "database ERROR"})
 	} else {
 		c.IndentedJSON(http.StatusCreated, room)
 	}
@@ -82,7 +83,11 @@ func getRoom(c *gin.Context, db *gorm.DB) {
 	// GET /api/v1/rooms/:roomId
 	roomId64, err := strconv.ParseUint(c.Param("roomId"), 10, 64)
 	if err != nil {
-		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "No such uri resource, roomId must be unsigned integer", "uri": "/rooms/" + c.Param("roomId")})
+		c.IndentedJSON(
+			http.StatusNotFound,
+			gin.H{
+				"message": "NO such uri resource, roomId must be unsigned integer",
+				"uri":     "/rooms/" + c.Param("roomId")})
 		return
 	}
 	roomId := uint(roomId64)
@@ -96,7 +101,10 @@ func getRoom(c *gin.Context, db *gorm.DB) {
 
 	roomAllInfo, err := internal.GetRoomAllInfo(db, roomId)
 	if err != nil {
-		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "error", "uri": "/rooms/" + c.Param("roomId")})
+		c.IndentedJSON(http.StatusNotFound,
+			gin.H{
+				"message": "database ERROR",
+			})
 	} else {
 		c.IndentedJSON(http.StatusOK, roomAllInfo)
 	}
@@ -105,7 +113,12 @@ func getRoom(c *gin.Context, db *gorm.DB) {
 func registerUser(c *gin.Context, db *gorm.DB) {
 	roomId64, err := strconv.ParseUint(c.Param("roomId"), 10, 64)
 	if err != nil {
-		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "No such uri resource, roomId must be unsigned integer", "uri": "/rooms/" + c.Param("roomId")})
+		c.IndentedJSON(
+			http.StatusNotFound,
+			gin.H{
+				"message": "NO such uri resource, roomId must be unsigned integer",
+				"uri":     "/rooms/" + c.Param("roomId")},
+		)
 		return
 	}
 	roomId := uint(roomId64)
@@ -113,26 +126,57 @@ func registerUser(c *gin.Context, db *gorm.DB) {
 	var newUser internal.UserJSON
 
 	if err := c.BindJSON(&newUser); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, newUser)
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Invalid JSON, could NOT parse"})
 		return
 	}
 
 	/* room id check and auth, check room day length * day pattern length == userJSON.availabilities.length */
+	room, roomErr := internal.GetRoom(db, roomId)
 
-	result, user := internal.CreateUser(db,
+	if roomErr != nil {
+		if errors.Is(roomErr, gorm.ErrRecordNotFound) {
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "NO such uri resource, such room NOT exists"})
+		} else {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "database ERROR"})
+		}
+		return
+	}
+
+	if int(room.DayLength*room.DayPatternLength) != len(newUser.Availabilities) {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "invalid JSON, availabilities length MISSmatched"})
+	}
+
+	userResult, user := internal.CreateUser(db,
 		internal.User{
 			RoomId:  roomId,
 			Name:    newUser.Name,
 			Comment: newUser.Comment,
 		})
 
-	if result.RowsAffected == 0 {
-		c.IndentedJSON(http.StatusInternalServerError, user)
-	} else {
-		c.IndentedJSON(http.StatusCreated, user)
+	if userResult.RowsAffected == 0 {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "database ERROR"})
+		return
 	}
+	// else {
+	// 	c.IndentedJSON(http.StatusCreated, user)
+	// }
 
 	/* create availabilities in db */
+	for index, availability := range newUser.Availabilities {
+		planResult, _ := internal.CreatePlan(db,
+			internal.Plan{
+				UserId:       user.ID,
+				TimeId:       uint(index + 1),
+				Availability: availability,
+			})
+
+		if planResult.RowsAffected == 0 {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "database ERROR"})
+			return
+		}
+	}
+
+	c.IndentedJSON(http.StatusCreated, newUser)
 }
 
 // func getUsersInRoom(c *gin.Context, db *gorm.DB) {

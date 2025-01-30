@@ -49,8 +49,9 @@ func CreateUser(db *gorm.DB, user User) (*gorm.DB, User) {
 	return result, user
 }
 
-func CreatePlan(db *gorm.DB, plan Plan) {
-	db.Create(&plan)
+func CreatePlan(db *gorm.DB, plan Plan) (*gorm.DB, Plan) {
+	result := db.Create(&plan)
+	return result, plan
 }
 
 // Read
@@ -161,7 +162,7 @@ func GetRoomAllInfo(db *gorm.DB, roomId uint) (RoomAllInfoJSON, error) {
 
 func GetRoom(db *gorm.DB, roomId uint) (Room, error) {
 	var room Room
-	result := db.Where("id = ?", roomId).Find(&room)
+	result := db.Where("id = ?", roomId).First(&room)
 
 	return room, result.Error
 }

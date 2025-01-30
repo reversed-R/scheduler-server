@@ -49,7 +49,7 @@ type RoomAllInfoJSON struct {
 	DayLength        uint       `json:"dayLength"`
 	DayPattern       string     `json:"dayPatternId"`
 	DayPatternLength uint       `json:"dayPatternLength"`
-	Users            []UserJSON `json:"userPlans"`
+	Users            []UserJSON `json:"users"`
 }
 
 type UserJSON struct {

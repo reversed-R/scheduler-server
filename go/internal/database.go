@@ -119,7 +119,7 @@ func GetRoomAllInfo(db *gorm.DB, roomId uint) (RoomAllInfoJSON, error) {
 			availabilities = append(availabilities, "")
 
 			for _, p := range plans {
-				if int(p.TimeId) == i {
+				if int(p.TimeId) == i+1 {
 					availabilities[i] = p.Availability
 					break
 				}

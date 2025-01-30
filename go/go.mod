@@ -4,6 +4,8 @@ go 1.23.4
 
 require (
 	github.com/gin-gonic/gin v1.10.0
+	github.com/thoas/go-funk v0.9.3
+	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12
 )

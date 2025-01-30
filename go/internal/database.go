@@ -1,103 +1,14 @@
 package internal
 
 import (
-	"fmt"
+	// "fmt"
+	// "github.com/thoas/go-funk"
+	// "golang.org/x/exp/slices"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"time"
+	// "sort"
+	// "time"
 )
-
-// for front
-type RoomAllInfo struct {
-	RoomName         string     `json:"roomName"`
-	RoomDescription  string     `json:"roomDescription"`
-	BeginTime        TimeJSON   `json:"beginTime"`
-	DayLength        uint       `json:"dayLength"`
-	DayPattern       string     `json:"dayPatternId"`
-	DayPatternLength uint       `json:"dayPatternLength"`
-	UserPlans        []UserPlan `json:"userPlans"`
-	// Times           []time.Time `json:"times"`
-}
-
-type UserPlan struct {
-	Name           string   `json:"name"`
-	Comment        string   `json:"comment"`
-	Availabilities []string `json:"availabilities"`
-}
-
-type RoomJSON struct {
-	Name             string   `json:"name"`
-	Description      string   `json:"description"`
-	BeginTime        TimeJSON `json:"beginTime"`
-	DayLength        uint     `json:"dayLength"`
-	DayPattern       string   `json:"dayPatternId"`
-	DayPatternLength uint     `json:"dayPatternLength"`
-}
-
-type TimeJSON struct {
-	Year  int        `json:"year"`
-	Month time.Month `json:"month"`
-	Day   int        `json:"day"`
-	Hour  int        `json:"hour"`
-	Min   int        `json:"min"`
-}
-
-// for DB tables
-
-// type Date struct {
-// 	Year  int
-// 	Month time.Month
-// 	Day   int
-// }
-
-// length of days : all has length of days, begin day
-// time pattern in a day that should be supported : all has length of times
-// a day (1)
-// morning and afternoon (2)
-// classes time of tsukuba univ (1 + 6 + 1)
-// an hour cycle, begin and end can be freely decided (need to have begin time) (variable)
-
-// day pattern:
-//   "a_day"
-//   "am_and_pm"
-//   "classes_of_tsukuba_univ"
-//   "hours"
-
-type Room struct {
-	gorm.Model
-	Name             string    `gorm:"name"`
-	Description      string    `gorm:"description"`
-	BeginTime        time.Time `gorm:"begin_time"`
-	DayLength        uint      `gorm:"day_length"`
-	DayPattern       string    `gorm:"day_pattern_id"`
-	DayPatternLength uint      `gorm:"day_pattern_length"`
-	// Password   string
-}
-
-type User struct {
-	gorm.Model
-	RoomId  uint   `gorm:"room_id"`
-	Name    string `gorm:"name"`
-	Comment string `gorm:"comment"`
-}
-
-type Plan struct {
-	gorm.Model
-	// RoomId         uint `gorm:"room_id"`
-	UserId         uint `gorm:"user_id"`
-	AvailabilityId uint `gorm:"availability_id"`
-	TimeId         uint `gorm:"time_id"`
-}
-
-type Time struct {
-	gorm.Model
-	Time time.Time `gorm:"time"`
-}
-
-type Availability struct {
-	gorm.Model
-	Availability string `gorm:"availability"`
-}
 
 func ConnectDB() (*gorm.DB, error) {
 	dsn := "host=db user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Tokyo"
@@ -111,7 +22,9 @@ func ConnectDB() (*gorm.DB, error) {
 
 func InitDB(db *gorm.DB) {
 	// Migrate the schema
-	db.AutoMigrate(&Room{}, &User{}, &Plan{}, &Time{}, &Availability{})
+	db.AutoMigrate(&Room{}, &User{}, &Plan{})
+	// db.AutoMigrate(&Room{}, &User{}, &Plan{}, &Availability{})
+	// db.AutoMigrate(&Room{}, &User{}, &Plan{}, &Time{}, &Availability{})
 
 	// db.Create(&Availability{Availability: "OK"})
 	// db.Create(&Availability{Availability: "NO"})
@@ -145,54 +58,83 @@ func CreatePlan(db *gorm.DB, plan Plan) {
 // 	db.First(&product, code)
 // }
 
-func GetRoomAllInfo(db *gorm.DB, roomId uint) (RoomAllInfo, error) {
+func GetRoomAllInfo(db *gorm.DB, roomId uint) (RoomAllInfoJSON, error) {
 	// var users []User
-	var times []Time
-	var availabilities []Availability
-	var userPlans []UserPlan
-	availabilitiesMap := make(map[uint]string)
-	timesMap := make(map[uint]time.Time)
+	// var times []Time
+	// var availabilities []Availability
+	// var availabilities []string
+	var userJSONs []UserJSON
+	// availabilitiesMap := make(map[uint]string)
+	// timesMap := make(map[uint]time.Time)
 
 	room, _ := GetRoom(db, roomId)
 	users, _ := GetUsersByRoomId(db, roomId)
 	// db.Find(&users)
-	db.Find(&times)
-	db.Find(&availabilities)
+	// db.Find(&times)
+	// db.Find(&availabilities)
 
-	fmt.Println("users", users)
-	fmt.Println("times", times)
-	fmt.Println("availabilities", availabilities)
+	// fmt.Println("users", users)
+	// fmt.Println("times", times)
+	// fmt.Println("availabilities", availabilities)
 
-	for _, a := range availabilities {
-		availabilitiesMap[a.ID] = a.Availability
-	}
+	// for _, a := range availabilities {
+	// 	availabilitiesMap[a.ID] = a.Availability
+	// }
 
-	for _, t := range times {
-		timesMap[t.ID] = t.Time
-	}
+	// for _, t := range times {
+	// 	timesMap[t.ID] = t.Time
+	// }
+
+	// for _, user := range users {
+	// 	plans, _ := GetPlansByUserId(db, user.ID)
+	// 	// fmt.Println("plans", plans)
+	// 	plansMap := make(map[uint]uint) // plan // timeId -> AvailabilityId
+	// 	// fmt.Println("plansMap", plansMap)
+	// 	for _, p := range plans {
+	// 		plansMap[p.TimeId] = p.AvailabilityId
+	// 		fmt.Println("plansMap", plansMap)
+	// 	}
+	//
+	// 	availabilityStrs := SliceMap(times,
+	// 		func(t Time) string { return availabilitiesMap[plansMap[t.ID]] })
+	//
+	// 	userPlans = append(userPlans,
+	// 		UserJSON{
+	// 			Name:           user.Name,
+	// 			Comment:        user.Comment,
+	// 			Availabilities: availabilityStrs,
+	// 		})
+	// }
 
 	for _, user := range users {
 		plans, _ := GetPlansByUserId(db, user.ID)
-		// fmt.Println("plans", plans)
-		plansMap := make(map[uint]uint) // plan // timeId -> AvailabilityId
-		// fmt.Println("plansMap", plansMap)
-		for _, p := range plans {
-			plansMap[p.TimeId] = p.AvailabilityId
-			fmt.Println("plansMap", plansMap)
+
+		// sort.Slice(plans, func(i, j int) bool { return plans[i].TimeId < plans[j].TimeId })
+
+		var availabilities []string
+		// var availabilities [room.DayLength * room.DayPatternLength]string
+		for i := 0; i < int(room.DayLength*room.DayPatternLength); i++ {
+			// plan := funk.Find(plans, func(plan Plan) bool { return int(plan.TimeId) == i })
+			availabilities = append(availabilities, "")
+
+			for _, p := range plans {
+				if int(p.TimeId) == i {
+					availabilities[i] = p.Availability
+					break
+				}
+			}
+
+			// availabilities[i] = plan.Availability
 		}
 
-		availabilityStrs := SliceMap(times,
-			func(t Time) string { return availabilitiesMap[plansMap[t.ID]] })
-
-		userPlans = append(userPlans,
-			UserPlan{
-				Name:           user.Name,
-				Comment:        user.Comment,
-				Availabilities: availabilityStrs,
-			})
+		userJSONs = append(userJSONs, UserJSON{
+			Name:           user.Name,
+			Comment:        user.Comment,
+			Availabilities: availabilities,
+		})
 	}
 
-	return RoomAllInfo{
+	return RoomAllInfoJSON{
 			RoomName:        room.Name,
 			RoomDescription: room.Description,
 			BeginTime: TimeJSON{
@@ -205,7 +147,7 @@ func GetRoomAllInfo(db *gorm.DB, roomId uint) (RoomAllInfo, error) {
 			DayLength:        room.DayLength,
 			DayPattern:       room.DayPattern,
 			DayPatternLength: room.DayPatternLength,
-			UserPlans:        userPlans,
+			Users:            userJSONs,
 		},
 		nil
 

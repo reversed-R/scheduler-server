@@ -26,10 +26,6 @@ func main() {
 	r := gin.Default()
 	v1 := r.Group("/api/v1")
 
-	// r.GET("/rooms", func(c *gin.Context) {
-	// 	c.IndentedJSON(http.StatusOK, internal.GetTable(db))
-	// })
-
 	v1.POST("/rooms", func(c *gin.Context) {
 		registerRoom(c, db)
 	})
@@ -38,36 +34,9 @@ func main() {
 		getRoom(c, db)
 	})
 
-	// v1.GET("/rooms/:roomId/users", func(c *gin.Context) {
-	// 	getUsersInRoom(c, db)
-	// })
-
 	v1.POST("/rooms/:roomId/users", func(c *gin.Context) {
 		registerUser(c, db)
 	})
-
-	// v1.POST("/rooms/users/:id", func(c *gin.Context) {
-	// 	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	// 	if err != nil {
-	// 		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "No such uri resource", "uri": "/table/users/" + c.Param("id")})
-	// 		return
-	// 	}
-	// 	id := uint(id64)
-	//
-	// 	var newUser internal.User
-	//
-	// 	if err := c.BindJSON(&newUser); err != nil {
-	// 		c.IndentedJSON(http.StatusBadRequest, newUser)
-	// 		return
-	// 	}
-	//
-	// 	result, user := internal.UpdateUser(db, id, newUser)
-	// 	if result.RowsAffected == 0 {
-	// 		c.IndentedJSON(http.StatusNotFound, user)
-	// 	} else {
-	// 		c.IndentedJSON(http.StatusOK, user)
-	// 	}
-	// })
 
 	r.Run("0.0.0.0:8080") // listen and serve on 0.0.0.0:8080
 }
@@ -133,6 +102,39 @@ func getRoom(c *gin.Context, db *gorm.DB) {
 	}
 }
 
+func registerUser(c *gin.Context, db *gorm.DB) {
+	roomId64, err := strconv.ParseUint(c.Param("roomId"), 10, 64)
+	if err != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "No such uri resource, roomId must be unsigned integer", "uri": "/rooms/" + c.Param("roomId")})
+		return
+	}
+	roomId := uint(roomId64)
+
+	var newUser internal.UserJSON
+
+	if err := c.BindJSON(&newUser); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, newUser)
+		return
+	}
+
+	/* room id check and auth, check room day length * day pattern length == userJSON.availabilities.length */
+
+	result, user := internal.CreateUser(db,
+		internal.User{
+			RoomId:  roomId,
+			Name:    newUser.Name,
+			Comment: newUser.Comment,
+		})
+
+	if result.RowsAffected == 0 {
+		c.IndentedJSON(http.StatusInternalServerError, user)
+	} else {
+		c.IndentedJSON(http.StatusCreated, user)
+	}
+
+	/* create availabilities in db */
+}
+
 // func getUsersInRoom(c *gin.Context, db *gorm.DB) {
 // 	roomId64, err := strconv.ParseUint(c.Param("roomId"), 10, 64)
 // 	if err != nil {
@@ -148,40 +150,6 @@ func getRoom(c *gin.Context, db *gorm.DB) {
 // 		c.IndentedJSON(http.StatusOK, users)
 // 	}
 // }
-
-func registerUser(c *gin.Context, db *gorm.DB) {
-	roomId64, err := strconv.ParseUint(c.Param("roomId"), 10, 64)
-	if err != nil {
-		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "No such uri resource, roomId must be unsigned integer", "uri": "/rooms/" + c.Param("roomId")})
-		return
-	}
-	roomId := uint(roomId64)
-
-	type User struct {
-		Name    string `json:"name"`
-		Comment string `json:"comment"`
-	}
-
-	var newUser User
-
-	if err := c.BindJSON(&newUser); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, newUser)
-		return
-	}
-
-	result, user := internal.CreateUser(db,
-		internal.User{
-			RoomId:  roomId,
-			Name:    newUser.Name,
-			Comment: newUser.Comment,
-		})
-
-	if result.RowsAffected == 0 {
-		c.IndentedJSON(http.StatusInternalServerError, user)
-	} else {
-		c.IndentedJSON(http.StatusCreated, user)
-	}
-}
 
 // func getUsersOfRoom(c *gin.Context, db *gorm.DB) {
 // }

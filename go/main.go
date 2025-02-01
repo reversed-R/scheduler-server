@@ -2,12 +2,14 @@ package main
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/reversed-R/time-adjustment-server/internal"
-	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/reversed-R/time-adjustment-server/internal"
+	"gorm.io/gorm"
 )
 
 type Product struct {
@@ -25,6 +27,21 @@ func main() {
 	internal.InitDB(db)
 
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"*",
+		},
+		AllowMethods: []string{
+			"GET",
+			"POST",
+		},
+		AllowHeaders: []string{
+			"Content-Type",
+		},
+		AllowCredentials: false,
+	}))
+
 	v1 := r.Group("/api/v1")
 
 	v1.POST("/rooms", func(c *gin.Context) {

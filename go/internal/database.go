@@ -64,7 +64,7 @@ func GetRoomAllInfo(db *gorm.DB, roomId uint) (RoomAllInfoJSON, error) {
 	// var times []Time
 	// var availabilities []Availability
 	// var availabilities []string
-	var userJSONs []UserJSON
+	var userJSONs = []UserJSON{}
 	// availabilitiesMap := make(map[uint]string)
 	// timesMap := make(map[uint]time.Time)
 
@@ -136,8 +136,8 @@ func GetRoomAllInfo(db *gorm.DB, roomId uint) (RoomAllInfoJSON, error) {
 	}
 
 	return RoomAllInfoJSON{
-			RoomName:        room.Name,
-			RoomDescription: room.Description,
+			Name:        room.Name,
+			Description: room.Description,
 			BeginTime: TimeJSON{
 				Year:  room.BeginTime.Year(),
 				Month: room.BeginTime.Month(),

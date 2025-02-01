@@ -12,6 +12,6 @@ curl -X POST -H "Content-Type: application/json" \
       "min": 10
     },
 	  "dayLength": 5,
-	  "dayPatternId": "am_and_pm",
+	  "dayPatternId": "AM_AND_PM",
 	  "dayPatternLength": 2
   }' localhost:8080/api/v1/rooms

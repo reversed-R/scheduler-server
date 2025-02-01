@@ -43,11 +43,11 @@ func DayPatternToLength(dayPattern string) int {
 
 // for front JSON
 type RoomAllInfoJSON struct {
-	RoomName         string     `json:"roomName"`
-	RoomDescription  string     `json:"roomDescription"`
+	Name             string     `json:"name"`
+	Description      string     `json:"description"`
 	BeginTime        TimeJSON   `json:"beginTime"`
 	DayLength        uint       `json:"dayLength"`
-	DayPattern       string     `json:"dayPatternId"`
+	DayPattern       string     `json:"dayPattern"`
 	DayPatternLength uint       `json:"dayPatternLength"`
 	Users            []UserJSON `json:"users"`
 }

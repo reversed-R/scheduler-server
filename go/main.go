@@ -1,20 +1,16 @@
 package main
 
 import (
-	// "database/sql"
-	"fmt"
+	"errors"
+	"net/http"
+	"strconv"
+	"time"
 
-	"gorm.io/driver/postgres"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/reversed-R/time-adjustment-server/internal"
 	"gorm.io/gorm"
 )
-
-// type Album struct {
-// 	gorm.Model
-// 	ID     string  `json:"id"`
-// 	Title  string  `json:"title"`
-// 	Artist string  `json:"artist"`
-// 	Price  float64 `json:"price"`
-// }
 
 type Product struct {
 	gorm.Model
@@ -23,106 +19,198 @@ type Product struct {
 }
 
 func main() {
-	fmt.Printf("main---->\n")
-
-	dsn := "host=db user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Shanghai"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-
+	db, err := internal.ConnectDB()
 	if err != nil {
 		panic("failed to connect database")
 	}
 
-	// Migrate the schema
-	db.AutoMigrate(&Product{})
+	internal.InitDB(db)
 
-	// Create
-	db.Create(&Product{Code: "D42", Price: 100})
+	r := gin.Default()
 
-	// Read
-	var product Product
-	// db.First(&product, 1)                 // find product with integer primary key
-	db.First(&product, "code = ?", "D42") // find product with code D42
+	r.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"*",
+		},
+		AllowMethods: []string{
+			"GET",
+			"POST",
+		},
+		AllowHeaders: []string{
+			"Content-Type",
+		},
+		AllowCredentials: false,
+	}))
 
-	fmt.Printf("product.Code=%s\n", product.Code)
+	v1 := r.Group("/api/v1")
 
-	// Update - update product's price to 200
-	db.Model(&product).Update("Price", 200)
-	// Update - update multiple fields
-	db.Model(&product).Updates(Product{Price: 200, Code: "F42"}) // non-zero fields
-	db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
-	fmt.Printf("product.Code=%s\n", product.Code)
+	v1.POST("/rooms", func(c *gin.Context) {
+		registerRoom(c, db)
+	})
 
-	// Delete - delete product
-	db.Delete(&product, 1)
-	fmt.Printf("product.Code=%s\n", product.Code)
+	v1.GET("/rooms/:roomId", func(c *gin.Context) {
+		getRoom(c, db)
+	})
 
-	fmt.Printf("<----main\n")
+	v1.POST("/rooms/:roomId/users", func(c *gin.Context) {
+		registerUser(c, db)
+	})
+
+	r.Run("0.0.0.0:8080") // listen and serve on 0.0.0.0:8080
 }
 
-// Create
-func CreateProduct(db gorm.DB, product Product) {
-	db.Create(&product)
+func registerRoom(c *gin.Context, db *gorm.DB) {
+	var newRoomJSON internal.RoomJSON
+	var beginTime time.Time
+	var newRoom internal.Room
+
+	if err := c.BindJSON(&newRoomJSON); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Invalid JSON, could NOT parse"})
+		return
+	}
+
+	beginTime = time.Date(
+		newRoomJSON.BeginTime.Year,
+		newRoomJSON.BeginTime.Month,
+		newRoomJSON.BeginTime.Day,
+		newRoomJSON.BeginTime.Hour,
+		newRoomJSON.BeginTime.Min,
+		0,
+		0,
+		time.Local)
+
+	newRoom = internal.Room{
+		Name:             newRoomJSON.Name,
+		Description:      newRoomJSON.Description,
+		BeginTime:        beginTime,
+		DayLength:        newRoomJSON.DayLength,
+		DayPattern:       newRoomJSON.DayPattern,
+		DayPatternLength: newRoomJSON.DayPatternLength,
+	}
+
+	result, room := internal.CreateRoom(db, newRoom)
+	if result.RowsAffected == 0 {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "database ERROR"})
+	} else {
+		c.IndentedJSON(http.StatusCreated, room)
+	}
 }
 
-// Read
-func ReadProductFirstByCode(db gorm.DB, product *Product, code string) {
-	db.First(&product, code)
+func getRoom(c *gin.Context, db *gorm.DB) {
+	// GET /api/v1/rooms/:roomId
+	roomId64, err := strconv.ParseUint(c.Param("roomId"), 10, 64)
+	if err != nil {
+		c.IndentedJSON(
+			http.StatusNotFound,
+			gin.H{
+				"message": "NO such uri resource, roomId must be unsigned integer",
+				"uri":     "/rooms/" + c.Param("roomId")})
+		return
+	}
+	roomId := uint(roomId64)
+
+	// room, err := internal.GetRoom(db, roomId)
+	// if err != nil {
+	// 	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "No such uri resource, such room Not found", "uri": "/rooms/" + c.Param("roomId")})
+	// } else {
+	// 	c.IndentedJSON(http.StatusOK, room)
+	// }
+
+	roomAllInfo, err := internal.GetRoomAllInfo(db, roomId)
+	if err != nil {
+		c.IndentedJSON(http.StatusNotFound,
+			gin.H{
+				"message": "database ERROR",
+			})
+	} else {
+		c.IndentedJSON(http.StatusOK, roomAllInfo)
+	}
 }
 
-// Update
-func UpdateByCode(db gorm.DB, product *Product, code string) {
-	// var oldAlbum Album
-	// oldAlbum.ID = id
-	// db.Model(oldAlbum).Updates(album)
-	//
-	// // Update - update product's price to 200
-	// db.Model(&product).Update("Price", 200)
-	// // Update - update multiple fields
-	// db.Model(&product).Updates(Product{Price: 200, Code: "F42"}) // non-zero fields
-	// db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
-	// fmt.Printf("product.Code=%s\n", product.Code)
+func registerUser(c *gin.Context, db *gorm.DB) {
+	roomId64, err := strconv.ParseUint(c.Param("roomId"), 10, 64)
+	if err != nil {
+		c.IndentedJSON(
+			http.StatusNotFound,
+			gin.H{
+				"message": "NO such uri resource, roomId must be unsigned integer",
+				"uri":     "/rooms/" + c.Param("roomId")},
+		)
+		return
+	}
+	roomId := uint(roomId64)
 
+	var newUser internal.UserJSON
+
+	if err := c.BindJSON(&newUser); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Invalid JSON, could NOT parse"})
+		return
+	}
+
+	/* room id check and auth, check room day length * day pattern length == userJSON.availabilities.length */
+	room, roomErr := internal.GetRoom(db, roomId)
+
+	if roomErr != nil {
+		if errors.Is(roomErr, gorm.ErrRecordNotFound) {
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "NO such uri resource, such room NOT exists"})
+		} else {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "database ERROR"})
+		}
+		return
+	}
+
+	if int(room.DayLength*room.DayPatternLength) != len(newUser.Availabilities) {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "invalid JSON, availabilities length MISSmatched"})
+	}
+
+	userResult, user := internal.CreateUser(db,
+		internal.User{
+			RoomId:  roomId,
+			Name:    newUser.Name,
+			Comment: newUser.Comment,
+		})
+
+	if userResult.RowsAffected == 0 {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "database ERROR"})
+		return
+	}
+	// else {
+	// 	c.IndentedJSON(http.StatusCreated, user)
+	// }
+
+	/* create availabilities in db */
+	for index, availability := range newUser.Availabilities {
+		planResult, _ := internal.CreatePlan(db,
+			internal.Plan{
+				UserId:       user.ID,
+				TimeId:       uint(index + 1),
+				Availability: availability,
+			})
+
+		if planResult.RowsAffected == 0 {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "database ERROR"})
+			return
+		}
+	}
+
+	c.IndentedJSON(http.StatusCreated, newUser)
 }
 
-// // Delete
-// func Delete(album Album) {
-//         db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-//         if err != nil {
-//                 panic("failed to connect database")
-//         }
+// func getUsersInRoom(c *gin.Context, db *gorm.DB) {
+// 	roomId64, err := strconv.ParseUint(c.Param("roomId"), 10, 64)
+// 	if err != nil {
+// 		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "No such uri resource, roomId must be unsigned integer", "uri": "/rooms/" + c.Param("roomId")})
+// 		return
+// 	}
+// 	roomId := uint(roomId64)
 //
-//         db.Delete(&album, 1)
+// 	users, err := internal.GetUsersByRoomId(db, roomId)
+// 	if err != nil {
+// 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "error", "uri": "/rooms/" + c.Param("roomId") + "/users"})
+// 	} else {
+// 		c.IndentedJSON(http.StatusOK, users)
+// 	}
 // }
 
-// type Product struct {
-//      gorm.Model
-//      Code  string
-//      Price uint
-// }
-//
-// func test() {
-//      db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-//      if err != nil {
-//              panic("failed to connect database")
-//      }
-//
-//      // Migrate the schema
-//      db.AutoMigrate(&Product{})
-//
-//      // Create
-//      db.Create(&Product{Code: "D42", Price: 100})
-//
-//      // Read
-//      var product Product
-//      db.First(&product, 1)
-//      db.First(&product, "code = ?", "D42")
-//
-//      // Update
-//      db.Model(&product).Update("Price", 200)
-//      // Update
-//      db.Model(&product).Updates(Product{Price: 200, Code: "F42"})
-//      db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
-//
-//      // Delete
-//      db.Delete(&product, 1)
+// func getUsersOfRoom(c *gin.Context, db *gorm.DB) {
 // }
